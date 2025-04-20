@@ -59,10 +59,11 @@ jobs:
     needs: [check-override, build-check]
     runs-on: ubuntu-latest
     outputs:
-          merge: ${{ steps.check-merge.outputs.merge }}
+          merge: ${{ steps.approve-merge.outputs.merge }}
     if: always()
     steps:
       - name: Check PR for merge
+        id: approve-merge
         run: |
           echo "Allow merge: ${{ needs.check-override.outputs.allow-merge }}"
           echo "Build check: ${{ needs.build-check.result || 'skipped' }}"
