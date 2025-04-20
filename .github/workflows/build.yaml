@@ -1,4 +1,4 @@
-name: Secure PR merge with buiild check
+name: Secure PR merge with build check
 on:
   pull_request: 
     branches: [main]
@@ -16,6 +16,7 @@ jobs:
             echo "allow-merge=true" >> $GITHUB_OUTPUT
           else
             echo "allow-merge=false" >> $GITHUB_OUTPUT
+          fi
   build-check:
     needs: check-label
     if: needs.check-label.outputs.allow-merge == 'false'
@@ -37,7 +38,15 @@ jobs:
   approve-merge:
     needs: [check-label, build-check]
     runs-on: ubuntu-latest
-    if: always() && needs.check-label.outputs.allow-merge == 'true' || needs.build-check.result == 'success'
+    if: always()
     steps:
-      - name: Approve PR for merge
-        run: echo "PR is approved for merge"
+      - name: Check PR for merge
+        run: |
+          echo "Allow merge: ${{ needs.check-label.outputs.allow-merge }}"
+          echo "Build check: ${{ needs.build-check.result || 'skipped' }}"
+          if [[ "${{ needs.check-label.outputs.allow-merge }}" == "true" ]] || [[ "${{ needs.build-check.result || 'skipped' }}" == "success" ]]; then
+            echo "PR approved for merge"
+          else 
+            echo "PR not approved for merge"
+            exit 1
+          fi
