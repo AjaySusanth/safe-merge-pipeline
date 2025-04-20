@@ -77,49 +77,32 @@ jobs:
           fi
   merge-pr:
     needs: approve-merge
-    if: always()  # Change to always() to force running condition checks
+    if: success() && needs.approve-merge.outputs.merge == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 
-      - name: Check why merge is skipped
-        if: ${{ !(success() && needs.approve-merge.outputs.merge == 'true') }}
-        run: |
-          echo "Skipped because:"
-          echo "approve-merge success: ${{ needs.approve-merge.result == 'success' }}"
-          echo "merge-approved: ${{ needs.approve-merge.outputs.merge }}"
-          exit 1
-          
 
-      - name: Set PR number or URL
-        id: pr_info
+      - name: Set up Git
         run: |
-          if [[ -z "${{ github.event.pull_request.html_url }}" ]]; then
-            echo "No PR URL found. Using PR number instead."
-            echo "PR_NUMBER=${{ github.event.issue.number }}" >> $GITHUB_ENV
-          else
-            echo "Valid PR URL found: ${{ github.event.pull_request.html_url }}"
-            echo "PR_URL=${{ github.event.pull_request.html_url }}" >> $GITHUB_ENV
-          fi
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
 
-      - name: Merge PR by number or URL
+      - name: Fetch main branch
         run: |
-          if [[ -n "$PR_URL" ]]; then
-            echo "Merging PR with URL: $PR_URL"
-            curl -X PUT \
-            -H "Authorization: token $GH_TOKEN" \
-            -d '{"commit_title": "Merge PR #${{ env.PR_NUMBER }}", "merge_method": "merge", "bypass_pull_request_reviews": true}' \
-            "$PR_URL/merge"
-          else
-            echo "Merging PR #${PR_NUMBER}..."
-            curl -X PUT \
-            -H "Authorization: token $GH_TOKEN" \
-            -d '{"commit_title": "Merge PR #${{ env.PR_NUMBER }}", "merge_method": "merge", "bypass_pull_request_reviews": true}' \
-            "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}/merge"
-          fi
+          git fetch origin main
+
+      - name: Switch to main branch
+        run: |
+          git checkout main
+
+      - name: Merge the pull request
+        run: |
+          echo "Merging the pull request branch into main..."
+          git merge ${{ github.event.pull_request.head.ref }}
+
+      - name: Push changes to the main branch
+        run: |
+          git push origin main
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ env.PR_NUMBER }}
-          PR_URL: ${{ env.PR_URL }}
