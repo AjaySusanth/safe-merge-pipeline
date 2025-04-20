@@ -119,7 +119,7 @@ jobs:
             -d '{"commit_title": "Merge PR #${{ env.PR_NUMBER }}", "merge_method": "merge", "bypass_pull_request_reviews": true}' \
             "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}/merge"
           fi
-          env:
-            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            PR_NUMBER: ${{ env.PR_NUMBER }}
-            PR_URL: ${{ env.PR_URL }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ env.PR_NUMBER }}
+          PR_URL: ${{ env.PR_URL }}
