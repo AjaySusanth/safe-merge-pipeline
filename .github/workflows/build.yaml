@@ -93,11 +93,29 @@ jobs:
           exit 1
           
 
-      - name: Merge PR
-        if: success() && needs.approve-merge.outputs.merge == 'true'
-        run: gh pr merge "$PR_URL" --merge --admin
+      - name: Set PR number or URL
+        id: pr_info
+        run: |
+          if [[ -z "${{ github.event.pull_request.html_url }}" ]]; then
+            echo "No PR URL found. Using PR number instead."
+            echo "PR_NUMBER=${{ github.event.issue.number }}" >> $GITHUB_ENV
+          else
+            echo "Valid PR URL found: ${{ github.event.pull_request.html_url }}"
+            echo "PR_URL=${{ github.event.pull_request.html_url }}" >> $GITHUB_ENV
+          fi
+
+      - name: Merge PR by number or URL
+        run: |
+          if [[ -n "$PR_URL" ]]; then
+            echo "Merging PR with URL: $PR_URL"
+            gh pr merge "$PR_URL" --merge --admin
+          else
+            echo "Merging PR #${PR_NUMBER}..."
+            gh pr merge "$PR_NUMBER" --merge --admin
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ env.PR_NUMBER }}
+          PR_URL: ${{ env.PR_URL }}
 
 
