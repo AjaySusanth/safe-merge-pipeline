@@ -12,7 +12,7 @@ jobs:
   check-override:
     runs-on: ubuntu-latest
     outputs:
-      allow-merge: ${{steps.check-override.outputs.allow-merge}}
+      allow-merge: ${{ steps.check-override.outputs.allow-merge }}
     steps:
       - name: Check for override comment
         id: check-override
@@ -58,6 +58,8 @@ jobs:
   approve-merge:
     needs: [check-override, build-check]
     runs-on: ubuntu-latest
+    outputs:
+          merge: ${{ steps.check-merge.outputs.merge }}
     if: always()
     steps:
       - name: Check PR for merge
@@ -65,17 +67,24 @@ jobs:
           echo "Allow merge: ${{ needs.check-override.outputs.allow-merge }}"
           echo "Build check: ${{ needs.build-check.result || 'skipped' }}"
           if [[ "${{ needs.check-override.outputs.allow-merge }}" == "true" ]] || [[ "${{ needs.build-check.result || 'skipped' }}" == "success" ]]; then
+             echo "merge=true" >> $GITHUB_OUTPUT
             echo "PR approved for merge"
-            exit 0
           else 
+            echo "merge=false" >> $GITHUB_OUTPUT
             echo "PR not approved for merge"
             exit 1
           fi
+  merge-pr:
+    needs: approve-merge
+    if: needs.approve-merge.outputs.merge == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Merge pr
-        if: success()
         run: |
           echo "Merging PR..."
           gh pr merge "$PR_URL" --merge --admin
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }} 
+          PR_URL: ${{ github.event.pull_request.html_url }}
