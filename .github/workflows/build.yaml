@@ -80,6 +80,10 @@ jobs:
     if: always()  # Change to always() to force running condition checks
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
       - name: Check why merge is skipped
         if: ${{ !(success() && needs.approve-merge.outputs.merge == 'true') }}
         run: |
@@ -87,6 +91,7 @@ jobs:
           echo "approve-merge success: ${{ needs.approve-merge.result == 'success' }}"
           echo "merge-approved: ${{ needs.approve-merge.outputs.merge }}"
           exit 1
+          
 
       - name: Merge PR
         if: success() && needs.approve-merge.outputs.merge == 'true'
