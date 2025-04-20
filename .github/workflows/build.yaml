@@ -1,10 +1,12 @@
-name: PR Build check
+name: Secure PR merge with buiild check
 on:
-  pull_request:
+  pull_request: 
     branches: [main]
+    types: [opened, synchronize, labeled]
 
 jobs:
   build-check:
+    name: Build check
     runs-on: ubuntu-latest
     defaults:
             run:
@@ -20,3 +22,10 @@ jobs:
         run: npm install
       - name: Run build
         run: npm run build
+  override-merge:
+    name: Override merge
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.labels.*.name, 'override')
+    steps:
+      - name: Override request approved
+        run: echo "Overriding build check. Allowing merge"
