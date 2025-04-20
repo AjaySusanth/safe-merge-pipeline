@@ -59,10 +59,11 @@ jobs:
     needs: [check-override, build-check]
     runs-on: ubuntu-latest
     outputs:
-          merge: ${{ steps.check-merge.outputs.merge }}
+          merge: ${{ steps.approve-merge.outputs.merge }}
     if: always()
     steps:
       - name: Check PR for merge
+        id: approve-merge
         run: |
           echo "Allow merge: ${{ needs.check-override.outputs.allow-merge }}"
           echo "Build check: ${{ needs.build-check.result || 'skipped' }}"
@@ -76,15 +77,22 @@ jobs:
           fi
   merge-pr:
     needs: approve-merge
-    if: success()
+    if: always()  # Change to always() to force running condition checks
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Merge pr
+      - name: Check why merge is skipped
+        if: ${{ !(success() && needs.approve-merge.outputs.merge == 'true') }}
         run: |
-          echo "Merging PR..."
-          gh pr merge "$PR_URL" --merge --admin
+          echo "Skipped because:"
+          echo "approve-merge success: ${{ needs.approve-merge.result == 'success' }}"
+          echo "merge-approved: ${{ needs.approve-merge.outputs.merge }}"
+          exit 1
+
+      - name: Merge PR
+        if: success() && needs.approve-merge.outputs.merge == 'true'
+        run: gh pr merge "$PR_URL" --merge --admin
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
+
+
