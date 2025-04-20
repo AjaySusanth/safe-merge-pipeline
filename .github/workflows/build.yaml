@@ -16,6 +16,7 @@ jobs:
             echo "allow-merge=true" >> $GITHUB_OUTPUT
           else
             echo "allow-merge=false" >> $GITHUB_OUTPUT
+          fi
   build-check:
     needs: check-label
     if: needs.check-label.outputs.allow-merge == 'false'
