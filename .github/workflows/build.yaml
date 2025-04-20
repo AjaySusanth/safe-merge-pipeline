@@ -1,4 +1,7 @@
 name: Secure PR merge with build check
+permissions:
+  contents: write
+  pull-requests: write
 on:
   pull_request: 
     branches: [main]
