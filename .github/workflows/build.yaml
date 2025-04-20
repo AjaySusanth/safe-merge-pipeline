@@ -2,7 +2,7 @@ name: Secure PR merge with build check
 on:
   pull_request: 
     branches: [main]
-    types: [opened,labeled]
+    types: [opened, synchronize, labeled, unlabeled, reopened]
 
 jobs:
   check-label:
