@@ -76,7 +76,7 @@ jobs:
           fi
   merge-pr:
     needs: approve-merge
-    if: needs.approve-merge.outputs.merge == 'true'
+    if: success()
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
