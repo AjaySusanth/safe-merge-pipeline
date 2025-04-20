@@ -12,7 +12,7 @@ jobs:
       - name: Check for override label
         id: check-label
         run: |
-          if [[ "${{github.event.pull_request.labels.*.name}}" == *'override'*]]; then
+          if echo "${{ toJson(github.event.pull_request.labels) }}" | grep -q 'override'; then
             echo "allow-merge=true" >> $GITHUB_OUTPUT
           else
             echo "allow-merge=false" >> $GITHUB_OUTPUT
