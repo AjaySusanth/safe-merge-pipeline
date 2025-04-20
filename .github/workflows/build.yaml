@@ -2,11 +2,23 @@ name: Secure PR merge with buiild check
 on:
   pull_request: 
     branches: [main]
-    types: [opened, synchronize, labeled]
 
 jobs:
+  check-label:
+    runs-on: ubuntu-latest
+    outputs:
+      allow-merge: ${{steps.check-label.outputs.allow-merge}}
+    steps:
+      - name: Check for override label
+        id: check-label
+        run: |
+          if [[ "${{github.event.pull_request.labels.*.name}}" == *'override'*]]; then
+            echo "allow-merge=true" >> $GITHUB_OUTPUT
+          else
+            echo "allow-merge=false" >> $GITHUB_OUTPUT
   build-check:
-    name: Build check
+    needs: check-label
+    if: needs.check-label.outputs.allow-merge == 'false'
     runs-on: ubuntu-latest
     defaults:
             run:
@@ -22,10 +34,10 @@ jobs:
         run: npm install
       - name: Run build
         run: npm run build
-  override-merge:
-    name: Override merge
+  approve-merge:
+    needs: [check-label, build-check]
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.labels.*.name, 'override')
+    if: always() && needs.check-label.outputs.allow-merge == 'true' || needs.build-check.result == 'success'
     steps:
-      - name: Override request approved
-        run: echo "Overriding build check. Allowing merge"
+      - name: Approve PR for merge
+        run: echo "PR is approved for merge"
