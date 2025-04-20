@@ -2,24 +2,42 @@ name: Secure PR merge with build check
 on:
   pull_request: 
     branches: [main]
+  issue_comment:
+    types: [created]
 
 jobs:
-  check-label:
+  check-override:
+    if: github.event_name == 'issue_comment' && github.event.issue.pull_request != null
     runs-on: ubuntu-latest
     outputs:
-      allow-merge: ${{steps.check-label.outputs.allow-merge}}
+      allow-merge: ${{steps.check-override.outputs.allow-merge}}
     steps:
-      - name: Check for override label
-        id: check-label
+      - name: Check for override comment
+        id: check-override
         run: |
-          if echo "${{ toJson(github.event.pull_request.labels) }}" | grep -q 'override'; then
-            echo "allow-merge=true" >> $GITHUB_OUTPUT
-          else
-            echo "allow-merge=false" >> $GITHUB_OUTPUT
+          allow_merge=false
+          authorized_users=("AjaySusanth")
+          if [[ "${{ github.event_name }}" == "issue_comment" ]]; then
+            if [[ "${{ github.event.comment.body }}" == "/override" ]]; then
+              is_pr_comment="${{ github.event.issue.pull_request != null }}"
+              commenter=${{ github.event.comment.user.login }}
+
+              if [[ "$is_pr_comment" == "true" ]]; then
+                for user in "${authorized_users[@]}"; do
+                  if [[ "$commenter" == "$user" ]]; then
+                    allow_merge=true
+                    break
+                  fi
+                done
+              fi
+            fi
           fi
+          echo "allow-merge=$allow_merge" >> $GITHUB_OUTPUT
+        
+
   build-check:
-    needs: check-label
-    if: needs.check-label.outputs.allow-merge == 'false'
+    needs: check-override
+    if: needs.check-override.outputs.allow-merge == 'false'
     runs-on: ubuntu-latest
     defaults:
             run:
@@ -36,15 +54,15 @@ jobs:
       - name: Run build
         run: npm run build
   approve-merge:
-    needs: [check-label, build-check]
+    needs: [check-override, build-check]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Check PR for merge
         run: |
-          echo "Allow merge: ${{ needs.check-label.outputs.allow-merge }}"
+          echo "Allow merge: ${{ needs.check-override.outputs.allow-merge }}"
           echo "Build check: ${{ needs.build-check.result || 'skipped' }}"
-          if [[ "${{ needs.check-label.outputs.allow-merge }}" == "true" ]] || [[ "${{ needs.build-check.result || 'skipped' }}" == "success" ]]; then
+          if [[ "${{ needs.check-override.outputs.allow-merge }}" == "true" ]] || [[ "${{ needs.build-check.result || 'skipped' }}" == "success" ]]; then
             echo "PR approved for merge"
           else 
             echo "PR not approved for merge"
