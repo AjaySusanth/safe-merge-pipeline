@@ -7,7 +7,6 @@ on:
 
 jobs:
   check-override:
-    if: github.event_name == 'issue_comment' && github.event.issue.pull_request != null
     runs-on: ubuntu-latest
     outputs:
       allow-merge: ${{steps.check-override.outputs.allow-merge}}
@@ -64,7 +63,16 @@ jobs:
           echo "Build check: ${{ needs.build-check.result || 'skipped' }}"
           if [[ "${{ needs.check-override.outputs.allow-merge }}" == "true" ]] || [[ "${{ needs.build-check.result || 'skipped' }}" == "success" ]]; then
             echo "PR approved for merge"
+            exit 0
           else 
             echo "PR not approved for merge"
             exit 1
           fi
+      - name: Merge pr
+        if: success()
+        run: |
+          echo "Merging PR..."
+          gh pr merge "$PR_URL" --merge --admin
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
