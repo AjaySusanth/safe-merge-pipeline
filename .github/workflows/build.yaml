@@ -108,14 +108,18 @@ jobs:
         run: |
           if [[ -n "$PR_URL" ]]; then
             echo "Merging PR with URL: $PR_URL"
-            gh pr merge "$PR_URL" --merge --admin
+            curl -X PUT \
+            -H "Authorization: token $GH_TOKEN" \
+            -d '{"commit_title": "Merge PR #${{ env.PR_NUMBER }}", "merge_method": "merge", "bypass_pull_request_reviews": true}' \
+            "$PR_URL/merge"
           else
             echo "Merging PR #${PR_NUMBER}..."
-            gh pr merge "$PR_NUMBER" --merge --admin
+            curl -X PUT \
+            -H "Authorization: token $GH_TOKEN" \
+            -d '{"commit_title": "Merge PR #${{ env.PR_NUMBER }}", "merge_method": "merge", "bypass_pull_request_reviews": true}' \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}/merge"
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ env.PR_NUMBER }}
           PR_URL: ${{ env.PR_URL }}
-
-
