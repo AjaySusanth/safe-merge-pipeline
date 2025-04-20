@@ -1,45 +1,26 @@
 name: Secure PR merge with build check
-permissions:
-  contents: write
-  pull-requests: write
 on:
   pull_request: 
     branches: [main]
-  issue_comment:
-    types: [created]
+    types: [opened,labeled]
 
 jobs:
-  check-override:
+  check-label:
     runs-on: ubuntu-latest
     outputs:
-      allow-merge: ${{ steps.check-override.outputs.allow-merge }}
+      allow-merge: ${{steps.check-label.outputs.allow-merge}}
     steps:
-      - name: Check for override comment
-        id: check-override
+      - name: Check for override label
+        id: check-label
         run: |
-          allow_merge=false
-          authorized_users=("AjaySusanth")
-          if [[ "${{ github.event_name }}" == "issue_comment" ]]; then
-            if [[ "${{ github.event.comment.body }}" == "/override" ]]; then
-              is_pr_comment="${{ github.event.issue.pull_request != null }}"
-              commenter=${{ github.event.comment.user.login }}
-
-              if [[ "$is_pr_comment" == "true" ]]; then
-                for user in "${authorized_users[@]}"; do
-                  if [[ "$commenter" == "$user" ]]; then
-                    allow_merge=true
-                    break
-                  fi
-                done
-              fi
-            fi
+          if echo "${{ toJson(github.event.pull_request.labels) }}" | grep -q 'override'; then
+            echo "allow-merge=true" >> $GITHUB_OUTPUT
+          else
+            echo "allow-merge=false" >> $GITHUB_OUTPUT
           fi
-          echo "allow-merge=$allow_merge" >> $GITHUB_OUTPUT
-        
-
   build-check:
-    needs: check-override
-    if: needs.check-override.outputs.allow-merge == 'false'
+    needs: check-label
+    if: needs.check-label.outputs.allow-merge == 'false'
     runs-on: ubuntu-latest
     defaults:
             run:
@@ -56,70 +37,17 @@ jobs:
       - name: Run build
         run: npm run build
   approve-merge:
-    needs: [check-override, build-check]
+    needs: [check-label, build-check]
     runs-on: ubuntu-latest
-    outputs:
-          merge: ${{ steps.approve-merge.outputs.merge }}
     if: always()
     steps:
       - name: Check PR for merge
-        id: approve-merge
         run: |
-          echo "Allow merge: ${{ needs.check-override.outputs.allow-merge }}"
+          echo "Allow merge: ${{ needs.check-label.outputs.allow-merge }}"
           echo "Build check: ${{ needs.build-check.result || 'skipped' }}"
-          if [[ "${{ needs.check-override.outputs.allow-merge }}" == "true" ]] || [[ "${{ needs.build-check.result || 'skipped' }}" == "success" ]]; then
-             echo "merge=true" >> $GITHUB_OUTPUT
+          if [[ "${{ needs.check-label.outputs.allow-merge }}" == "true" ]] || [[ "${{ needs.build-check.result || 'skipped' }}" == "success" ]]; then
             echo "PR approved for merge"
           else 
-            echo "merge=false" >> $GITHUB_OUTPUT
             echo "PR not approved for merge"
             exit 1
           fi
-  merge-pr:
-    needs: approve-merge
-    if: always()  # Change to always() to force running condition checks
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 
-      - name: Check why merge is skipped
-        if: ${{ !(success() && needs.approve-merge.outputs.merge == 'true') }}
-        run: |
-          echo "Skipped because:"
-          echo "approve-merge success: ${{ needs.approve-merge.result == 'success' }}"
-          echo "merge-approved: ${{ needs.approve-merge.outputs.merge }}"
-          exit 1
-          
-
-      - name: Set PR number or URL
-        id: pr_info
-        run: |
-          if [[ -z "${{ github.event.pull_request.html_url }}" ]]; then
-            echo "No PR URL found. Using PR number instead."
-            echo "PR_NUMBER=${{ github.event.issue.number }}" >> $GITHUB_ENV
-          else
-            echo "Valid PR URL found: ${{ github.event.pull_request.html_url }}"
-            echo "PR_URL=${{ github.event.pull_request.html_url }}" >> $GITHUB_ENV
-          fi
-
-      - name: Merge PR by number or URL
-        run: |
-          if [[ -n "$PR_URL" ]]; then
-            echo "Merging PR with URL: $PR_URL"
-            curl -X PUT \
-            -H "Authorization: token $GH_TOKEN" \
-            -d '{"commit_title": "Merge PR #${{ env.PR_NUMBER }}", "merge_method": "merge", "bypass_pull_request_reviews": true}' \
-            "$PR_URL/merge"
-          else
-            echo "Merging PR #${PR_NUMBER}..."
-            curl -X PUT \
-            -H "Authorization: token $GH_TOKEN" \
-            -d '{"commit_title": "Merge PR #${{ env.PR_NUMBER }}", "merge_method": "merge", "bypass_pull_request_reviews": true}' \
-            "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}/merge"
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ env.PR_NUMBER }}
-          PR_URL: ${{ env.PR_URL }}
