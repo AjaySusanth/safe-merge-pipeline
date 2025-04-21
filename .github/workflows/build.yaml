@@ -23,7 +23,9 @@ jobs:
                 echo "allow-merge=true" >> $GITHUB_OUTPUT
                 break
               fi
-            done            
+            done
+          else
+            echo "No override label"
           fi
   build-check:
     needs: check-label
