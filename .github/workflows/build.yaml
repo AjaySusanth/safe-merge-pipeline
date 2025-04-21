@@ -14,7 +14,7 @@ jobs:
         id: check-label
         run: |
           echo "allow-merge=false" >> $GITHUB_OUTPUT
-          authorized_users="AjaySusanth Akshay"
+          authorized_users="AjaySusanth AkshaySusanth"
           labeler="${{ github.event.sender.login }}"
           if echo "${{ toJson(github.event.pull_request.labels) }}" | grep -q 'override'; then
             for user in $authorized_users; do
