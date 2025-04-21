@@ -13,8 +13,15 @@ jobs:
       - name: Check for override label
         id: check-label
         run: |
+          authorized_users="${{ secrets.AUTHORIZED_LABELERS }}"
+          labeler="${{ github.event.sender.login}}"
           if echo "${{ toJson(github.event.pull_request.labels) }}" | grep -q 'override'; then
-            echo "allow-merge=true" >> $GITHUB_OUTPUT
+            if echo "$authorized_users" | grep -qw "$labeler"; then
+              echo "allow-merge=true" >> $GITHUB_OUTPUT
+            else
+              echo "$labeler is not authorized to override"
+              echo "allow-merge=false" >> $GITHUB_OUTPUT
+            fi
           else
             echo "allow-merge=false" >> $GITHUB_OUTPUT
           fi
