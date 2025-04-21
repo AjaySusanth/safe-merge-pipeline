@@ -2,45 +2,36 @@ name: Secure PR merge with build check
 on:
   pull_request: 
     branches: [main]
-  issue_comment:
-    types: [created]
+    types: [opened, synchronize, labeled, unlabeled, reopened]
 
 jobs:
-  check-override:
+  check-label:
     runs-on: ubuntu-latest
     outputs:
-      allow-merge: ${{steps.check-override.outputs.allow-merge}}
+      allow-merge: ${{ steps.check-label.outputs.allow-merge }}
     steps:
-      - name: Check for override comment
-        id: check-override
+      - name: Check for override label
+        id: check-label
         run: |
-          allow_merge=false
-          authorized_users=("AjaySusanth")
-          if [[ "${{ github.event_name }}" == "issue_comment" ]]; then
-            if [[ "${{ github.event.comment.body }}" == "/override" ]]; then
-              is_pr_comment="${{ github.event.issue.pull_request != null }}"
-              commenter=${{ github.event.comment.user.login }}
-
-              if [[ "$is_pr_comment" == "true" ]]; then
-                for user in "${authorized_users[@]}"; do
-                  if [[ "$commenter" == "$user" ]]; then
-                    allow_merge=true
-                    break
-                  fi
-                done
-              fi
+          authorized_users="${{ secrets.AUTHORIZED_LABELERS }}"
+          labeler="${{ github.event.sender.login}}"
+          if echo "${{ toJson(github.event.pull_request.labels) }}" | grep -q 'override'; then
+            if echo "$authorized_users" | grep -qw "$labeler"; then
+              echo "allow-merge=true" >> $GITHUB_OUTPUT
+            else
+              echo "$labeler is not authorized to override"
+              echo "allow-merge=false" >> $GITHUB_OUTPUT
             fi
+          else
+            echo "allow-merge=false" >> $GITHUB_OUTPUT
           fi
-          echo "allow-merge=$allow_merge" >> $GITHUB_OUTPUT
-        
-
   build-check:
-    needs: check-override
-    if: needs.check-override.outputs.allow-merge == 'false'
+    needs: check-label
+    if: needs.check-label.outputs.allow-merge == 'false'
     runs-on: ubuntu-latest
-    defaults:
-            run:
-                working-directory: demo-app
+    defaults: 
+      run:
+        working-directory: demo-app
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -53,26 +44,17 @@ jobs:
       - name: Run build
         run: npm run build
   approve-merge:
-    needs: [check-override, build-check]
+    needs: [check-label, build-check]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Check PR for merge
         run: |
-          echo "Allow merge: ${{ needs.check-override.outputs.allow-merge }}"
+          echo "Allow merge: ${{ needs.check-label.outputs.allow-merge }}"
           echo "Build check: ${{ needs.build-check.result || 'skipped' }}"
-          if [[ "${{ needs.check-override.outputs.allow-merge }}" == "true" ]] || [[ "${{ needs.build-check.result || 'skipped' }}" == "success" ]]; then
+          if [[ "${{ needs.check-label.outputs.allow-merge }}" == "true" ]] || [[ "${{ needs.build-check.result || 'skipped' }}" == "success" ]]; then
             echo "PR approved for merge"
-            exit 0
           else 
             echo "PR not approved for merge"
             exit 1
           fi
-      - name: Merge pr
-        if: success()
-        run: |
-          echo "Merging PR..."
-          gh pr merge "$PR_URL" --merge --admin
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
