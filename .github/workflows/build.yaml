@@ -14,8 +14,7 @@ jobs:
         id: check-label
         run: |
           authorized_users=$(cat <<EOF
-          AjaySusanth
-          JohnDoe
+          "AjaySusanth"
           EOF
           )
           labeler="${{ github.event.sender.login}}"
