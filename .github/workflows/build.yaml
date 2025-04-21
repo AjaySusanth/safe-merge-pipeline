@@ -16,14 +16,16 @@ jobs:
           echo "allow-merge=false" >> $GITHUB_OUTPUT
           authorized_users="AjaySusanth Akshay"
           labeler="${{ github.event.sender.login }}"
-          if echo "${{ toJson(github.event.pull_request.labels) }}" | grep -q '"name": *"override"'; then
+          if echo "${{ toJson(github.event.pull_request.labels) }}" | grep -q 'override'; then
             for user in $authorized_users; do
               if [ "$user" == "$labeler" ]; then
                 echo "$labeler is authorized"
                 echo "allow-merge=true" >> $GITHUB_OUTPUT
                 break
               fi
-            done            
+            done
+          else
+            echo "No override label"
           fi
   build-check:
     needs: check-label
