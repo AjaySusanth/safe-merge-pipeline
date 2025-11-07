@@ -1,7 +1,3 @@
-Here’s a comprehensive `README.md` for your **Secure PR Merge with Build Check** GitHub Actions workflow:
-
----
-
 # Secure PR Merge with Build Check
 
 A GitHub Actions workflow that ensures pull requests (PRs) are only merged if they either:
