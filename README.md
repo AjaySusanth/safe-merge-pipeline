@@ -86,8 +86,3 @@ The workflow runs automatically on:
 - **Override label not working**:
   - Verify the label name is exactly `override`.
   - Confirm the user is in `authorized_users`.
-
----
-
-## 📜 License
-MIT. See [LICENSE](LICENSE) (if applicable).
